@@ -1,3 +1,4 @@
+device = "cuda:0"
 
 image_size = 224, 224
 

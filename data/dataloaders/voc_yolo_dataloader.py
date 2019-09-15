@@ -8,7 +8,9 @@ class VOCYoloDataLoader(object):
     def __init__(self, root_dir, year):
         self.dataset = VOCDataset(root_dir, year)
 
-    def build_dataloader(self, image_set, batch_size, image_transform=True, target_transform=True, shuffle=False, num_workers=8):
+    def build_dataloader(self, image_set, batch_size,
+                         image_transform=True, target_transform=True,
+                         shuffle=False, num_workers=8):
         transform = YOLOTransform(self.dataset.classes_list())
         image_transform = transform.image_transform if image_transform else None
         target_transform = transform.target_transform if target_transform else None
