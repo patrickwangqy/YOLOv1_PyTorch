@@ -10,8 +10,8 @@ def tensor_to_image(tensor: torch.Tensor) -> np.ndarray:
     for i, (mean, std) in enumerate(zip(config.mean, config.std)):
         tensor[i, :, :] = tensor[i, :, :] * std + mean
     image = torchvision.transforms.functional.to_pil_image(tensor)
-    image = np.array(image)
-    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    image = np.array(image).copy()
+    # image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     return image
 
 
