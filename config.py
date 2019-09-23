@@ -1,6 +1,6 @@
 device = "cuda:0"
 
-image_size = 224, 224
+image_size = 448, 448
 
 cell_size = 7, 7
 

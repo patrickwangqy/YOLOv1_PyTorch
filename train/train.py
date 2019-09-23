@@ -13,7 +13,7 @@ class Train(object):
         self.epochs = epochs
         self.device = device
         self.logger = VisdomLog("yolov1 train")
-        self.checkpoint_dir = "checkpoint"
+        self.checkpoint_dir = "checkpoints"
 
     def fit(self, trainloader, statistics_steps=1, valloader=None):
         print("train")

@@ -45,7 +45,7 @@ def draw_label(image, result):
                 cv2.rectangle(image, (x1_, y1_), (x2_, y2_), (0, 255, 0))
 
 
-def draw_predict(image, result, threshold=0.3):
+def draw_predict(image, result, threshold=0.1):
     for i in range(config.cell_size[0]):
         for j in range(config.cell_size[1]):
             for k in range(config.boxes_num_per_cell):
