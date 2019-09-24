@@ -22,17 +22,6 @@ class Train(object):
             if valloader:
                 self.evaluate(valloader)
 
-    def train_step(self, inputs, labels):
-        self.optimizer.zero_grad()
-
-        outputs = self.model(inputs)
-        class_loss, object_confidence_loss, no_object_confidence_loss, coord_loss = self.criterion(labels, outputs)
-        loss = class_loss + 2 * object_confidence_loss + 0.5 * no_object_confidence_loss + 5 * coord_loss
-        loss.backward()
-        self.optimizer.step()
-
-        return class_loss, object_confidence_loss, no_object_confidence_loss, coord_loss
-
     def train_epoch(self, epoch, trainloader, statistics_steps=1):
         self.model.train()
         running_class_loss = 0.0
@@ -81,6 +70,17 @@ class Train(object):
                 steps_time = 0.0
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         torch.save(self.model.state_dict(), os.path.join(self.checkpoint_dir, f"{epoch:04d}.pt"))
+
+    def train_step(self, inputs, labels):
+        self.optimizer.zero_grad()
+
+        outputs = self.model(inputs)
+        class_loss, object_confidence_loss, no_object_confidence_loss, coord_loss = self.criterion(labels, outputs)
+        loss = class_loss + 2 * object_confidence_loss + 0.5 * no_object_confidence_loss + 5 * coord_loss
+        loss.backward()
+        self.optimizer.step()
+
+        return class_loss, object_confidence_loss, no_object_confidence_loss, coord_loss
 
     def evaluate(self, testloader):
         correct = 0

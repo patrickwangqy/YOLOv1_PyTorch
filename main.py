@@ -15,7 +15,7 @@ from models import DetectModel
 def train_exec(args):
     dataloader: DataLoader = VOCYoloDataLoader(args.data_root, "2007").build_dataloader("train", batch_size=16, shuffle=True)
     model: nn.Module = DetectModel().to(config.device)
-    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
     train = Train(model, optimizer, yolo_loss, args.epochs, config.device)
     train.fit(dataloader, 10)
 

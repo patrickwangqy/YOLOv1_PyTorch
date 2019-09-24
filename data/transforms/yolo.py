@@ -10,7 +10,7 @@ def retrive_voc_bounding_box(bndbox, image_shape):
 
 
 class YOLOTransform(object):
-    def __init__(self, classes_list: List, image_size=(224, 224), cell_size=(7, 7), box_num_per_cell=2):
+    def __init__(self, classes_list: List, image_size=config.image_size, cell_size=config.cell_size, box_num_per_cell=config.boxes_num_per_cell):
         self.image_size = image_size
         self.cell_size = cell_size
         self.box_num_per_cell = box_num_per_cell
