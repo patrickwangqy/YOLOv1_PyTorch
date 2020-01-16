@@ -25,46 +25,48 @@ def draw_bbox(image, bboxes):
         cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
 
-def draw_label(image, result):
-    for i in range(config.cell_size[0]):
-        for j in range(config.cell_size[1]):
-            score = result[i, j, 4]
-            if score > 0:
-                cy = result[i, j, 0]
-                cx = result[i, j, 1]
-                h = result[i, j, 2]
-                w = result[i, j, 3]
-                y1 = cy - h / 2
-                x1 = cx - w / 2
-                y2 = cy + h / 2
-                x2 = cx + w / 2
-                y1_ = int(y1 * image.shape[0])
-                x1_ = int(x1 * image.shape[1])
-                y2_ = int(y2 * image.shape[0])
-                x2_ = int(x2 * image.shape[1])
-                cv2.rectangle(image, (x1_, y1_), (x2_, y2_), (0, 255, 0))
+def draw_label(image, result, cell_size, box_num):
+    for i in range(cell_size[0]):
+        for j in range(cell_size[1]):
+            for k in range(box_num):
+                score = result[i, j, 0]
+                if score > 0:
+                    cx = result[i, j, 1]
+                    cy = result[i, j, 2]
+                    w = result[i, j, 3]
+                    h = result[i, j, 4]
+                    x1 = cx - w / 2
+                    y1 = cy - h / 2
+                    x2 = cx + w / 2
+                    y2 = cy + h / 2
+                    y1_ = int(y1 * image.shape[0])
+                    x1_ = int(x1 * image.shape[1])
+                    y2_ = int(y2 * image.shape[0])
+                    x2_ = int(x2 * image.shape[1])
+                    cv2.rectangle(image, (x1_, y1_), (x2_, y2_), (255, 0, 0), 2)
 
 
-def draw_predict(image, result, threshold=0.1):
+def draw_predict(image, result, cell_size, box_num, threshold=0.7):
+    result = result[..., :5 * box_num].reshape(cell_size[0], cell_size[1], box_num, 5)
     for i in range(config.cell_size[0]):
         for j in range(config.cell_size[1]):
             for k in range(config.boxes_num_per_cell):
-                score = result[i, j, config.boxes_num_per_cell * 4 + k]
+                score = result[i, j, k, 0].item()
                 if score < threshold:
                     continue
-                cy = (i + result[i, j, 0 + k * 4]) / result.shape[0]
-                cx = (j + result[i, j, 1 + k * 4]) / result.shape[1]
-                h = result[i, j, 2 + k * 4] ** 2
-                w = result[i, j, 3 + k * 4] ** 2
-                y1 = cy - h / 2
+                cx = (result[i, j, k, 1].item() + j) / cell_size[1]
+                cy = (result[i, j, k, 2].item() + i) / cell_size[0]
+                w = result[i, j, k, 3].item() ** 2
+                h = result[i, j, k, 4].item() ** 2
                 x1 = cx - w / 2
-                y2 = cy + h / 2
+                y1 = cy - h / 2
                 x2 = cx + w / 2
-                y1_ = int(y1 * image.shape[0])
+                y2 = cy + h / 2
                 x1_ = int(x1 * image.shape[1])
-                y2_ = int(y2 * image.shape[0])
+                y1_ = int(y1 * image.shape[0])
                 x2_ = int(x2 * image.shape[1])
-                cv2.rectangle(image, (x1_, y1_), (x2_, y2_), (0, 255, 0))
+                y2_ = int(y2 * image.shape[0])
+                cv2.rectangle(image, (x1_, y1_), (x2_, y2_), (0, 255, 0), 2)
 
 
 def imshow(image):

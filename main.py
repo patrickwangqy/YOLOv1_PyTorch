@@ -5,27 +5,49 @@ import torch.optim as optim
 from torch.utils.data.dataloader import DataLoader
 
 import config
-from data.dataloaders import VOCYoloDataLoader
-from losses import yolo_loss
+from data.datasets import PascalVOC2007Person
+from data.transforms import YOLOTransform
+from losses import YOLOLoss
 from train import Train
 from val import Validation
-from models import DetectModel
+from models import ResNet50 as Net
 
 
 def train_exec(args):
-    dataloader: DataLoader = VOCYoloDataLoader(args.data_root, "2007").build_dataloader("train", batch_size=16, shuffle=True)
-    model: nn.Module = DetectModel().to(config.device)
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    torch.manual_seed(config.SEED)
+    # dataloader: DataLoader = VOCYoloDataLoader(args.data_root, "2007").build_dataloader("train", batch_size=16, shuffle=True)
+    dataset = PascalVOC2007Person(args.data_root)
+    yolo_transform = YOLOTransform(config.image_size,
+                                   config.cell_size,
+                                   config.boxes_num_per_cell,
+                                   len(dataset.classes))
+    dataloader = DataLoader(dataset,
+                            batch_size=config.batch_size,
+                            collate_fn=yolo_transform,
+                            shuffle=True)
+    model: nn.Module = Net(config.cell_size,
+                           config.boxes_num_per_cell,
+                           len(dataset.classes)).to(config.device)
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
+    yolo_loss = YOLOLoss(config.cell_size,
+                         config.boxes_num_per_cell,
+                         len(dataset.classes))
     train = Train(model, optimizer, yolo_loss, args.epochs, config.device)
     train.fit(dataloader, 10)
 
 
 def val_exec(args):
-    dataloader: DataLoader = VOCYoloDataLoader(args.data_root, "2007").build_dataloader("val", batch_size=1, shuffle=False, num_workers=0)
-    model: nn.Module = DetectModel().to(config.device)
+    dataset = PascalVOC2007Person(args.data_root)
+    yolo_transform = YOLOTransform(config.image_size,
+                                   config.cell_size,
+                                   config.boxes_num_per_cell,
+                                   len(dataset.classes))
+    model: nn.Module = Net(config.cell_size,
+                           config.boxes_num_per_cell,
+                           len(dataset.classes)).to(config.device)
     model.load_state_dict(torch.load(args.checkpoint))
     val = Validation(model)
-    val.val(dataloader)
+    val.val(dataset, yolo_transform)
 
 
 def main():

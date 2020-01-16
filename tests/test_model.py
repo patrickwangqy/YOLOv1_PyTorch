@@ -8,7 +8,7 @@ from utils import image_util
 
 def main():
     model = DetectModel()
-    voc_ds = VOCDataset("/mnt/data/datasets", "2007")
+    voc_ds = VOCDataset("D:\\Datasets", "2007")
     yolo_trans = YOLOTransform(voc_ds.classes_list())
     val_ds = voc_ds.build_dataset("val", image_transform=yolo_trans.image_transform, target_transform=yolo_trans.target_transform)
     val_dl = DataLoader(val_ds, batch_size=1, shuffle=True, num_workers=0)

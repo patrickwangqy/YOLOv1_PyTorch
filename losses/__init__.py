@@ -1,4 +1,4 @@
-from .loss import yolo_loss
+from .loss import YOLOLoss
 
 
-__all__ = [yolo_loss]
+__all__ = [YOLOLoss]

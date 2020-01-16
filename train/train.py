@@ -1,8 +1,9 @@
 import torch
 import timeit
 import os
+import datetime
 
-from train.logs import VisdomLog
+from train.logs import VisdomLog as Log
 
 
 class Train(object):
@@ -12,7 +13,7 @@ class Train(object):
         self.criterion = criterion
         self.epochs = epochs
         self.device = device
-        self.logger = VisdomLog("yolov1 train")
+        self.logger = Log("yolov1")
         self.checkpoint_dir = "checkpoints"
 
     def fit(self, trainloader, statistics_steps=1, valloader=None):
@@ -24,49 +25,67 @@ class Train(object):
 
     def train_epoch(self, epoch, trainloader, statistics_steps=1):
         self.model.train()
+        running_loss = 0.0
         running_class_loss = 0.0
-        running_object_confidence_loss = 0.0
-        running_no_object_confidence_loss = 0.0
-        running_coord_loss = 0.0
+        running_xy_loss = 0.0
+        running_wh_loss = 0.0
+        running_pos_conf_loss = 0.0
+        running_neg_conf_loss = 0.0
         steps_time = 0.0
         for step, data in enumerate(trainloader, 1):
             inputs, labels = data
             inputs, labels = inputs.to(self.device), labels.to(self.device)
 
             start_time = timeit.default_timer()
-            class_loss, object_confidence_loss, no_object_confidence_loss, coord_loss = self.train_step(inputs, labels)
+            loss, class_loss, xy_loss, wh_loss, pos_conf_loss, neg_conf_loss = self.train_step(inputs, labels)
             steps_time += timeit.default_timer() - start_time
 
-            class_loss, object_confidence_loss, no_object_confidence_loss, coord_loss = class_loss.item(), object_confidence_loss.item(), no_object_confidence_loss.item(), coord_loss.item()
+            loss = loss.item()
+            class_loss = class_loss.item()
+            xy_loss = xy_loss.item()
+            wh_loss = wh_loss.item()
+            pos_conf_loss = pos_conf_loss.item()
+            neg_conf_loss = neg_conf_loss.item()
 
+            running_loss += loss
             running_class_loss += class_loss
-            running_object_confidence_loss += object_confidence_loss
-            running_no_object_confidence_loss += no_object_confidence_loss
-            running_coord_loss += coord_loss
+            running_xy_loss += xy_loss
+            running_wh_loss += wh_loss
+            running_pos_conf_loss += pos_conf_loss
+            running_neg_conf_loss += neg_conf_loss
             if step % statistics_steps == 0:
+                running_loss /= statistics_steps
                 running_class_loss /= statistics_steps
-                running_object_confidence_loss /= statistics_steps
-                running_no_object_confidence_loss /= statistics_steps
-                running_coord_loss /= statistics_steps
-                steps_time /= statistics_steps
+                running_xy_loss /= statistics_steps
+                running_wh_loss /= statistics_steps
+                running_pos_conf_loss /= statistics_steps
+                running_neg_conf_loss /= statistics_steps
 
+                self.logger.line("loss", running_loss)
                 self.logger.line("class loss", running_class_loss)
-                self.logger.line("object confidence loss", running_object_confidence_loss)
-                self.logger.line("no object confidence loss", running_no_object_confidence_loss)
-                self.logger.line("coord loss", running_coord_loss)
+                self.logger.line("xy loss", running_xy_loss)
+                self.logger.line("wh loss", running_wh_loss)
+                self.logger.line("pos conf loss", running_pos_conf_loss)
+                self.logger.line("neg conf loss", running_neg_conf_loss)
 
-                print(f"epoch:{epoch}  "
+                print(f"{datetime.datetime.now()}  "
+                      f"epoch:{epoch}  "
                       f"step:{step}  "
-                      f"time:{steps_time:.3f}s/step  "
+                      f"time:{steps_time:.3f}s  ")
+                print(f"\t"
+                      f"loss: {running_loss:.3f}  "
                       f"class loss: {running_class_loss:.3f}  "
-                      f"obj conf loss: {running_object_confidence_loss:.3f}  "
-                      f"no obj conf loss: {running_no_object_confidence_loss:.3f}  "
-                      f"coord loss: {running_coord_loss:.3f}")
+                      f"xy loss: {running_xy_loss:.3f}  "
+                      f"wh loss: {running_wh_loss:.3f}  "
+                      f"pos conf loss: {running_pos_conf_loss:.3f}  "
+                      f"neg conf loss: {running_neg_conf_loss:.3f}  ")
 
+                running_loss = 0.0
                 running_class_loss = 0.0
-                running_object_confidence_loss = 0.0
-                running_no_object_confidence_loss = 0.0
-                running_coord_loss = 0.0
+                running_xy_loss = 0.0
+                running_wh_loss = 0.0
+                running_pos_conf_loss = 0.0
+                running_neg_conf_loss = 0.0
                 steps_time = 0.0
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         torch.save(self.model.state_dict(), os.path.join(self.checkpoint_dir, f"{epoch:04d}.pt"))
@@ -75,12 +94,12 @@ class Train(object):
         self.optimizer.zero_grad()
 
         outputs = self.model(inputs)
-        class_loss, object_confidence_loss, no_object_confidence_loss, coord_loss = self.criterion(labels, outputs)
-        loss = class_loss + 2 * object_confidence_loss + 0.5 * no_object_confidence_loss + 5 * coord_loss
+        loss, class_loss, xy_loss, wh_loss, pos_conf_loss, neg_conf_loss = self.criterion(outputs, labels)
+
         loss.backward()
         self.optimizer.step()
 
-        return class_loss, object_confidence_loss, no_object_confidence_loss, coord_loss
+        return loss, class_loss, xy_loss, wh_loss, pos_conf_loss, neg_conf_loss
 
     def evaluate(self, testloader):
         correct = 0
