@@ -5,7 +5,7 @@ import torch.optim as optim
 from torch.utils.data.dataloader import DataLoader
 
 import config
-from data.datasets import PascalVOC2007Person
+from data.datasets import PascalVOCDataset as DataSet
 from data.transforms import YOLOTransform
 from losses import YOLOLoss
 from train import Train
@@ -15,21 +15,20 @@ from models import ResNet50 as Net
 
 def train_exec(args):
     torch.manual_seed(config.SEED)
-    # dataloader: DataLoader = VOCYoloDataLoader(args.data_root, "2007").build_dataloader("train", batch_size=16, shuffle=True)
-    dataset = PascalVOC2007Person(args.data_root)
+    dataset = DataSet(args.data_root)
     yolo_transform = YOLOTransform(config.image_size,
-                                   config.cell_size,
+                                   config.grid_size,
                                    config.boxes_num_per_cell,
                                    len(dataset.classes))
     dataloader = DataLoader(dataset,
                             batch_size=config.batch_size,
                             collate_fn=yolo_transform,
                             shuffle=True)
-    model: nn.Module = Net(config.cell_size,
+    model: nn.Module = Net(config.grid_size,
                            config.boxes_num_per_cell,
                            len(dataset.classes)).to(config.device)
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
-    yolo_loss = YOLOLoss(config.cell_size,
+    yolo_loss = YOLOLoss(config.grid_size,
                          config.boxes_num_per_cell,
                          len(dataset.classes))
     train = Train(model, optimizer, yolo_loss, args.epochs, config.device)
@@ -37,12 +36,12 @@ def train_exec(args):
 
 
 def val_exec(args):
-    dataset = PascalVOC2007Person(args.data_root)
+    dataset = DataSet(args.data_root)
     yolo_transform = YOLOTransform(config.image_size,
-                                   config.cell_size,
+                                   config.grid_size,
                                    config.boxes_num_per_cell,
                                    len(dataset.classes))
-    model: nn.Module = Net(config.cell_size,
+    model: nn.Module = Net(config.grid_size,
                            config.boxes_num_per_cell,
                            len(dataset.classes)).to(config.device)
     model.load_state_dict(torch.load(args.checkpoint))

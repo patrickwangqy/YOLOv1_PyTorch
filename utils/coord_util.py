@@ -4,7 +4,7 @@ from typing import Tuple
 import config
 
 
-def global_to_cell_coord(global_coord: torch.Tensor, pos_mask: torch.Tensor, cell_size: Tuple[int, int], box_num: int) -> torch.Tensor:
+def global_to_cell_coord(global_coord: torch.Tensor, pos_mask: torch.Tensor, grid_size: Tuple[int, int], box_num: int) -> torch.Tensor:
     """全局坐标转cell坐标
 
     Arguments:
@@ -14,7 +14,7 @@ def global_to_cell_coord(global_coord: torch.Tensor, pos_mask: torch.Tensor, cel
         torch.Tensor -- shape: [..., (x', y', sqrt(w), sqrt(h))]，cell坐标
 
     """
-    offset_y = torch.arange(config.cell_size[0], dtype=torch.float32).reshape(-1, 1, 1).repeat(pos_mask.shape[0], 1, config.cell_size[1], box_num).to(config.device)
+    offset_y = torch.arange(config.grid_size[0], dtype=torch.float32).reshape(-1, 1, 1).repeat(pos_mask.shape[0], 1, config.grid_size[1], box_num).to(config.device)
     offset_x = offset_y.permute([0, 2, 1, 3])
 
     global_coord = global_coord[pos_mask]
@@ -29,15 +29,15 @@ def global_to_cell_coord(global_coord: torch.Tensor, pos_mask: torch.Tensor, cel
     cell_w = torch.sqrt(global_w)
     cell_h = torch.sqrt(global_h)
 
-    cell_x = global_x * cell_size[1] - offset_x
-    cell_y = global_y * cell_size[0] - offset_y
+    cell_x = global_x * grid_size[1] - offset_x
+    cell_y = global_y * grid_size[0] - offset_y
 
     cell_coord = torch.stack([cell_x, cell_y, cell_w, cell_h], dim=-1)
 
     return cell_coord
 
 
-def cell_to_global_coord(cell_coord: torch.Tensor, pos_mask: torch.Tensor, cell_size: Tuple[int, int], box_num: int) -> torch.Tensor:
+def cell_to_global_coord(cell_coord: torch.Tensor, pos_mask: torch.Tensor, grid_size: Tuple[int, int], box_num: int) -> torch.Tensor:
     """cell坐标转全局坐标
 
     Arguments:
@@ -46,7 +46,7 @@ def cell_to_global_coord(cell_coord: torch.Tensor, pos_mask: torch.Tensor, cell_
     Returns:
         torch.Tensor -- shape: [..., (x, y, w, h)]，全局坐标
     """
-    offset_y = torch.arange(config.cell_size[0], dtype=torch.float32).reshape(-1, 1, 1).repeat(pos_mask.shape[0], 1, config.cell_size[1], box_num).to(config.device)
+    offset_y = torch.arange(config.grid_size[0], dtype=torch.float32).reshape(-1, 1, 1).repeat(pos_mask.shape[0], 1, config.grid_size[1], box_num).to(config.device)
     offset_x = offset_y.permute([0, 2, 1, 3])
 
     cell_coord = cell_coord[pos_mask]
@@ -61,8 +61,8 @@ def cell_to_global_coord(cell_coord: torch.Tensor, pos_mask: torch.Tensor, cell_
     global_w = cell_w ** 2
     global_h = cell_h ** 2
 
-    global_x = (cell_x + offset_x) / cell_size[1]
-    global_y = (cell_y + offset_y) / cell_size[0]
+    global_x = (cell_x + offset_x) / grid_size[1]
+    global_y = (cell_y + offset_y) / grid_size[0]
 
     global_coord = torch.stack([global_x, global_y, global_w, global_h], dim=-1)
     return global_coord

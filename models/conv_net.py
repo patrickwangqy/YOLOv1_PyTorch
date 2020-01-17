@@ -3,12 +3,12 @@ import torch.nn as nn
 
 
 class ConvNet(nn.Module):
-    def __init__(self, cell_size, box_num, class_num, alpha=0.1):
+    def __init__(self, grid_size, box_num, class_num, alpha=0.1):
         super().__init__()
-        self.cell_size = cell_size
+        self.grid_size = grid_size
         self.box_num = box_num
         self.class_num = class_num
-        self.cell_num = self.cell_size[0] * self.cell_size[1]
+        self.cell_num = self.grid_size[0] * self.grid_size[1]
         self.feature_size = self.box_num * 5 + self.class_num
         self.layers = nn.Sequential(
             nn.Conv2d(3, 64, 7, 2, padding=3),  # 3,448,448 -> 64,224,224
@@ -70,9 +70,9 @@ class ConvNet(nn.Module):
             nn.LeakyReLU(alpha)
         )
         self.out = nn.Sequential(
-            nn.Linear(1024 * self.cell_size[0] * self.cell_size[1], 4096),
+            nn.Linear(1024 * self.grid_size[0] * self.grid_size[1], 4096),
             nn.LeakyReLU(alpha),
-            nn.Linear(4096, cell_size[0] * cell_size[1] * self.feature_size)
+            nn.Linear(4096, grid_size[0] * grid_size[1] * self.feature_size)
         )
 
     def forward(self, x):
@@ -80,5 +80,5 @@ class ConvNet(nn.Module):
         x = torch.flatten(x, start_dim=1)
         x = self.out(x)
         x = torch.sigmoid(x)
-        x = x.view(-1, self.cell_size[0], self.cell_size[1], self.feature_size)
+        x = x.view(-1, self.grid_size[0], self.grid_size[1], self.feature_size)
         return x

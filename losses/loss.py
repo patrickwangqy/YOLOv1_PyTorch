@@ -7,18 +7,18 @@ from utils import coord_util
 
 
 class YOLOLoss(nn.Module):
-    def __init__(self, cell_size: Tuple[int, int], box_num: int, class_num: int):
+    def __init__(self, grid_size: Tuple[int, int], box_num: int, class_num: int):
         """constract function
 
         Arguments:
-            cell_size {Tuple[int, int]} -- cell rows, cell columns
+            grid_size {Tuple[int, int]} -- cell rows, cell columns
             class_num {int} -- number of classes
 
         Keyword Arguments:
             box_num {int} -- number of boxes (default: {1})
         """
         super().__init__()
-        self.cell_size = cell_size
+        self.grid_size = grid_size
         self.class_num = class_num
         self.box_num = box_num
 
@@ -33,7 +33,7 @@ class YOLOLoss(nn.Module):
             Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] -- class loss, obj conf loss, no obj conf loss, coord loss
         """
         # batch, cell_rows, cell_cols, box_num, 5
-        p_loc = p[..., :5 * self.box_num].reshape(-1, *self.cell_size, self.box_num, 5)
+        p_loc = p[..., :5 * self.box_num].reshape(-1, *self.grid_size, self.box_num, 5)
         # batch, cell_rows, cell_cols, class_num
         p_class = p[..., 5 * self.box_num:]
         # batch, cell_rows, cell_cols, box_num
@@ -42,9 +42,9 @@ class YOLOLoss(nn.Module):
         p_box = p_loc[..., 1:5]
 
         # batch, cell_rows, cell_cols, box_num, 5
-        gt_loc = gt[..., :5].reshape(-1, *self.cell_size, self.box_num, 5)
+        gt_loc = gt[..., :5 * self.box_num].reshape(-1, *self.grid_size, self.box_num, 5)
         # batch, cell_rows, cell_cols, class_num
-        gt_class = gt[..., 5:]
+        gt_class = gt[..., 5 * self.box_num:]
         # batch, cell_rows, cell_cols, box_num
         gt_response = gt_loc[..., 0]
         # batch, cell_rows, cell_cols, box_num, 4
@@ -97,7 +97,7 @@ class YOLOLoss(nn.Module):
         p_box = p_box[pos_mask]
         p_xy = p_box[..., :2]
         p_wh = p_box[..., 2:]
-        gt_box = coord_util.global_to_cell_coord(gt_box, pos_mask, self.cell_size, self.box_num)
+        gt_box = coord_util.global_to_cell_coord(gt_box, pos_mask, self.grid_size, self.box_num)
         # gt_box = gt_box[pos_mask]
         gt_xy = gt_box[..., :2]
         gt_wh = gt_box[..., 2:]
@@ -125,7 +125,7 @@ class YOLOLoss(nn.Module):
         """
         pos_p_conf = p_conf[pos_mask]
         with torch.no_grad():
-            pos_p_box = coord_util.cell_to_global_coord(p_box, pos_mask, self.cell_size, self.box_num)
+            pos_p_box = coord_util.cell_to_global_coord(p_box, pos_mask, self.grid_size, self.box_num)
         neg_p_conf = p_conf[neg_mask]
         pos_gt_box = gt_box[pos_mask]
         with torch.no_grad():

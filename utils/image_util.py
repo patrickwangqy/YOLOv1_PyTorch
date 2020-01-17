@@ -15,19 +15,21 @@ def tensor_to_image(tensor: torch.Tensor) -> np.ndarray:
     return image
 
 
-def draw_bbox(image, bboxes):
-    for i in range(bboxes.shape[0]):
-        y1, x1, y2, x2 = bboxes[i, 0], bboxes[i, 1], bboxes[i, 2], bboxes[i, 3]
-        x1 = int(x1 * image.shape[1])
-        y1 = int(y1 * image.shape[0])
-        x2 = int(x2 * image.shape[1])
-        y2 = int(y2 * image.shape[0])
-        cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+def draw_boxes(image, boxes, scores, class_ids, classes):
+    x1s, y1s, x2s, y2s = boxes[..., 0], boxes[..., 1], boxes[..., 2], boxes[..., 3]
+    for i in range(boxes.shape[0]):
+        x1 = int(x1s[i] * image.shape[1])
+        y1 = int(y1s[i] * image.shape[0])
+        x2 = int(x2s[i] * image.shape[1])
+        y2 = int(y2s[i] * image.shape[0])
+        cv2.rectangle(image, (x1, y1), (x2, y2), (255, 0, 0), 2)
+        cv2.putText(image, f"{scores[i]:.2%}", (x1 + 5, y1 + 20), 1, 1, (0, 255, 255))
+        cv2.putText(image, f"{classes[class_ids[i]]}", (x1 + 5, y1 + 40), 1, 1, (0, 255, 255))
 
 
-def draw_label(image, result, cell_size, box_num):
-    for i in range(cell_size[0]):
-        for j in range(cell_size[1]):
+def draw_label(image, result, grid_size, box_num):
+    for i in range(grid_size[0]):
+        for j in range(grid_size[1]):
             for k in range(box_num):
                 score = result[i, j, 0]
                 if score > 0:
@@ -46,16 +48,16 @@ def draw_label(image, result, cell_size, box_num):
                     cv2.rectangle(image, (x1_, y1_), (x2_, y2_), (255, 0, 0), 2)
 
 
-def draw_predict(image, result, cell_size, box_num, threshold=0.7):
-    result = result[..., :5 * box_num].reshape(cell_size[0], cell_size[1], box_num, 5)
-    for i in range(config.cell_size[0]):
-        for j in range(config.cell_size[1]):
+def draw_predict(image, result, grid_size, box_num, threshold=0.7):
+    result = result[..., :5 * box_num].reshape(grid_size[0], grid_size[1], box_num, 5)
+    for i in range(config.grid_size[0]):
+        for j in range(config.grid_size[1]):
             for k in range(config.boxes_num_per_cell):
                 score = result[i, j, k, 0].item()
                 if score < threshold:
                     continue
-                cx = (result[i, j, k, 1].item() + j) / cell_size[1]
-                cy = (result[i, j, k, 2].item() + i) / cell_size[0]
+                cx = (result[i, j, k, 1].item() + j) / grid_size[1]
+                cy = (result[i, j, k, 2].item() + i) / grid_size[0]
                 w = result[i, j, k, 3].item() ** 2
                 h = result[i, j, k, 4].item() ** 2
                 x1 = cx - w / 2
@@ -70,7 +72,9 @@ def draw_predict(image, result, cell_size, box_num, threshold=0.7):
 
 
 def imshow(image):
-    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-    cv2.imshow("image", image)
-    cv2.waitKey()
-    cv2.destroyWindow("image")
+    try:
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        cv2.imshow("image", image)
+        return cv2.waitKey()
+    finally:
+        cv2.destroyWindow("image")

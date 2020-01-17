@@ -3,6 +3,8 @@ import torch
 from torchvision import transforms
 from PIL.Image import Image
 
+from utils import coord_util
+
 
 mean = [0.4472466, 0.42313144, 0.39118877]
 std = [0.2670601, 0.26384422, 0.27702332]
@@ -78,3 +80,20 @@ class YOLOTransform(object):
                 yolo_label[y_index, x_index, 0] = 1
             yolo_label[y_index, x_index, 5 * self.box_num + label] = 1
         return yolo_label
+
+    def decode(self, predict: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        locs = predict[..., :5 * self.box_num].reshape(-1, self.grid_size[0], self.grid_size[1], self.box_num, 5)
+        classes = predict[..., 5 * self.box_num:].unsqueeze(-2).repeat(1, 1, 1, self.box_num, 1)
+        scores = locs[..., 0]
+        boxes = locs[..., 1:5]
+        mask = scores > 0.5
+        xywh = coord_util.cell_to_global_coord(boxes, mask, self.grid_size, self.box_num)
+        xyxy = torch.zeros_like(xywh)
+        xyxy[..., 0] = xywh[..., 0] - xywh[..., 2] / 2
+        xyxy[..., 1] = xywh[..., 1] - xywh[..., 3] / 2
+        xyxy[..., 2] = xywh[..., 0] + xywh[..., 2] / 2
+        xyxy[..., 3] = xywh[..., 1] + xywh[..., 3] / 2
+        scores = scores[mask]
+        classes = classes[mask]
+        classes = torch.argmax(classes, dim=-1)
+        return xyxy, scores, classes
