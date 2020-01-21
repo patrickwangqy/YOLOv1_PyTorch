@@ -16,11 +16,10 @@ class Validation(object):
             to_show = np.array(item["image"])
             image = image.to(config.device)
             predicts = self.model(image)
-            boxes, scores, classes = transform.decode(predicts)
-            keep = torchvision.ops.nms(boxes, scores, 0.5)
-            image_util.draw_boxes(to_show, boxes[keep], scores[keep], classes[keep], dataset.classes)
-            # image_util.draw_predict(to_show, predicts[0], config.grid_size, config.boxes_num_per_cell)
-            # image_util.draw_label(to_show, label[0], config.grid_size, config.boxes_num_per_cell)
+            boxes, scores, classes = transform.decode(predicts, 0.7, config.boxes_num_per_cell)
+            if boxes is not None:
+                keep = torchvision.ops.nms(boxes, scores, 0.3)
+                image_util.draw_boxes(to_show, boxes[keep], scores[keep], classes[keep], dataset.classes)
             key = image_util.imshow(to_show)
             if key == 27:  # ESC
                 break

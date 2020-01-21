@@ -41,21 +41,23 @@ class YOLOLoss(nn.Module):
         # batch, cell_rows, cell_cols, box_num, 4
         p_box = p_loc[..., 1:5]
 
-        # batch, cell_rows, cell_cols, box_num, 5
-        gt_loc = gt[..., :5 * self.box_num].reshape(-1, *self.grid_size, self.box_num, 5)
-        # batch, cell_rows, cell_cols, class_num
-        gt_class = gt[..., 5 * self.box_num:]
-        # batch, cell_rows, cell_cols, box_num
-        gt_response = gt_loc[..., 0]
-        # batch, cell_rows, cell_cols, box_num, 4
-        gt_box = gt_loc[..., 1:5]
-
         # batch, cell_rows, cell_cols, box_num
         box_mask = torch.zeros_like(p_conf, dtype=torch.bool)
         _, box_conf_max_idx = p_conf.max(keepdim=True, dim=-1)
         box_mask.scatter_(-1, box_conf_max_idx, True)
+
+        # batch, cell_rows, cell_cols, 5
+        gt_loc = gt[..., :5]
+        # batch, cell_rows, cell_cols, class_num
+        gt_class = gt[..., 5:]
         # batch, cell_rows, cell_cols
-        pos_mask = gt_response[..., 0] > 0
+        gt_response = gt_loc[..., 0]
+        # batch, cell_rows, cell_cols, 1, 4
+        gt_box = gt_loc[..., 1:5].unsqueeze(dim=-2).repeat(1, 1, 1, self.box_num, 1)
+
+        # batch, cell_rows, cell_cols
+        pos_mask = gt_response > 0
+
         # batch, cell_rows, cell_cols, box_num
         pos_cell_mask = pos_mask.unsqueeze(-1) & box_mask
         neg_cell_mask = ~pos_cell_mask

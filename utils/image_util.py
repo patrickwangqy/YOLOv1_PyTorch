@@ -16,15 +16,22 @@ def tensor_to_image(tensor: torch.Tensor) -> np.ndarray:
 
 
 def draw_boxes(image, boxes, scores, class_ids, classes):
-    x1s, y1s, x2s, y2s = boxes[..., 0], boxes[..., 1], boxes[..., 2], boxes[..., 3]
+    x1s, y1s, x2s, y2s = boxes[..., 0].clamp(0, 1), boxes[..., 1].clamp(0, 1), boxes[..., 2].clamp(0, 1), boxes[..., 3].clamp(0, 1)
+    colors = [(200, 0, 0),
+              (200, 200, 0),
+              (200, 0, 200),
+              (0, 200, 0),
+              (0, 200, 200),
+              (0, 0, 200)]
     for i in range(boxes.shape[0]):
         x1 = int(x1s[i] * image.shape[1])
         y1 = int(y1s[i] * image.shape[0])
         x2 = int(x2s[i] * image.shape[1])
         y2 = int(y2s[i] * image.shape[0])
-        cv2.rectangle(image, (x1, y1), (x2, y2), (255, 0, 0), 2)
-        cv2.putText(image, f"{scores[i]:.2%}", (x1 + 5, y1 + 20), 1, 1, (0, 255, 255))
-        cv2.putText(image, f"{classes[class_ids[i]]}", (x1 + 5, y1 + 40), 1, 1, (0, 255, 255))
+        color = colors[i % len(colors)]
+        cv2.rectangle(image, (x1, y1), (x2, y2), color, 2)
+        cv2.putText(image, f"{scores[i]:.2%}", (x1 + 5, y1 + 20), 1, 1, color)
+        cv2.putText(image, f"{classes[class_ids[i]]}", (x1 + 5, y1 + 40), 1, 1, color)
 
 
 def draw_label(image, result, grid_size, box_num):

@@ -18,7 +18,6 @@ def train_exec(args):
     dataset = DataSet(args.data_root)
     yolo_transform = YOLOTransform(config.image_size,
                                    config.grid_size,
-                                   config.boxes_num_per_cell,
                                    len(dataset.classes))
     dataloader = DataLoader(dataset,
                             batch_size=config.batch_size,
@@ -39,7 +38,6 @@ def val_exec(args):
     dataset = DataSet(args.data_root)
     yolo_transform = YOLOTransform(config.image_size,
                                    config.grid_size,
-                                   config.boxes_num_per_cell,
                                    len(dataset.classes))
     model: nn.Module = Net(config.grid_size,
                            config.boxes_num_per_cell,

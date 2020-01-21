@@ -14,14 +14,12 @@ class YOLOTransform(object):
     def __init__(self,
                  image_size: Tuple[int, int],
                  grid_size: Tuple[int, int],
-                 box_num: int,
                  class_num: int):
         """YOLO Transform
 
         Arguments:
             image_size {Tuple[int, int]} -- image width, image height
             grid_size {Tuple[int, int]} -- grid rows, grid cols
-            box_num {int} -- the box number per cell
             class_num {int} -- the class number
         """
         self.image_transform = transforms.Compose([
@@ -30,7 +28,6 @@ class YOLOTransform(object):
             transforms.Normalize(mean, std),
         ])
         self.grid_size = grid_size
-        self.box_num = box_num
         self.class_num = class_num
 
     def __call__(self, data: Union[Dict, List[Dict]]) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -68,32 +65,33 @@ class YOLOTransform(object):
         norm_xywh[:, 2] = norm_xyxy[:, 2] - norm_xyxy[:, 0]
         norm_xywh[:, 3] = norm_xyxy[:, 3] - norm_xyxy[:, 1]
 
-        feature_size = 5 * self.box_num + self.class_num
+        feature_size = 5 + self.class_num
         yolo_label = torch.zeros([*self.grid_size, feature_size], dtype=torch.float)
         for xywh, label in zip(norm_xywh, labels):
             x_index = int(xywh[0] * self.grid_size[0])
             y_index = int(xywh[1] * self.grid_size[1])
             if yolo_label[y_index, x_index, 0] == 1:
                 continue
-            for box_index in range(self.box_num):
-                yolo_label[y_index, x_index, 1:5] = xywh
-                yolo_label[y_index, x_index, 0] = 1
-            yolo_label[y_index, x_index, 5 * self.box_num + label] = 1
+            yolo_label[y_index, x_index, 1:5] = xywh
+            yolo_label[y_index, x_index, 0] = 1
+            yolo_label[y_index, x_index, 5 + label] = 1
         return yolo_label
 
-    def decode(self, predict: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        locs = predict[..., :5 * self.box_num].reshape(-1, self.grid_size[0], self.grid_size[1], self.box_num, 5)
-        classes = predict[..., 5 * self.box_num:].unsqueeze(-2).repeat(1, 1, 1, self.box_num, 1)
+    def decode(self, predict: torch.Tensor, score: float, box_num: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        locs = predict[..., :5 * box_num].reshape(-1, self.grid_size[0], self.grid_size[1], box_num, 5)
+        classes = predict[..., 5 * box_num:].unsqueeze(-2).repeat(1, 1, 1, box_num, 1)
         scores = locs[..., 0]
         boxes = locs[..., 1:5]
-        mask = scores > 0.5
-        xywh = coord_util.cell_to_global_coord(boxes, mask, self.grid_size, self.box_num)
-        xyxy = torch.zeros_like(xywh)
-        xyxy[..., 0] = xywh[..., 0] - xywh[..., 2] / 2
-        xyxy[..., 1] = xywh[..., 1] - xywh[..., 3] / 2
-        xyxy[..., 2] = xywh[..., 0] + xywh[..., 2] / 2
-        xyxy[..., 3] = xywh[..., 1] + xywh[..., 3] / 2
-        scores = scores[mask]
-        classes = classes[mask]
-        classes = torch.argmax(classes, dim=-1)
-        return xyxy, scores, classes
+        mask = scores > score
+        if mask.any():
+            xywh = coord_util.cell_to_global_coord(boxes, mask, self.grid_size, box_num)
+            xyxy = torch.zeros_like(xywh)
+            xyxy[..., 0] = xywh[..., 0] - xywh[..., 2] / 2
+            xyxy[..., 1] = xywh[..., 1] - xywh[..., 3] / 2
+            xyxy[..., 2] = xywh[..., 0] + xywh[..., 2] / 2
+            xyxy[..., 3] = xywh[..., 1] + xywh[..., 3] / 2
+            scores = scores[mask]
+            classes = classes[mask]
+            classes = torch.argmax(classes, dim=-1)
+            return xyxy, scores, classes
+        return None, None, None
